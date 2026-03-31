@@ -1,0 +1,8 @@
+streamlit
+openai
+pandas
+openpyxl
+pdfplumber
+PyPDF2
+python-dotenv
+XlsxWriter
