@@ -15,13 +15,21 @@ from funcoes import DadosRetornoCSV  # sua função existente
 
 st.set_page_config(page_title="Extrator COELBA", layout="wide")
 
-st.title("⚡ Extrator Inteligente de Faturas PDF. Versão: 1.3")
+st.title("⚡ Extrator Inteligente de Faturas PDF. Versão: 1.4")
+
+if "uploader_key" not in st.session_state:
+    st.session_state.uploader_key = 0
 
 uploaded_files = st.file_uploader(
     "Selecione os PDFs",
     type="pdf",
-    accept_multiple_files=True
+    accept_multiple_files=True,
+    key=f"upload_{st.session_state.uploader_key}"
 )
+
+if st.button("🗑️ Limpar todos os arquivos"):
+    st.session_state.uploader_key += 1  # 🔥 recria o uploader
+    st.rerun()
 
 def normalizar_texto(txt):
     txt = unicodedata.normalize("NFKD", txt)
@@ -29,7 +37,8 @@ def normalizar_texto(txt):
     #print('Início: ', txt.find('Conta  Contrato Coletiva no'))
     return txt
 
-if uploaded_files:
+# if uploaded_files:
+if uploaded_files is not None and len(uploaded_files) > 0:
 
     output = StringIO(newline='')
 
@@ -160,35 +169,64 @@ if uploaded_files:
                 if texto is None:
                     continue
 
-                if (texto.find('DOCUMENTO PARA PAGAMENTO DA CONTA COLETIVA') == -1 and controlarPag == 0 and
+                if (texto.find('DOCUMENTO PARA PAGAMENTO DA CONTA COLETIVA') == -1 and controlarPag == 0 and 
+                    texto.find('DOCUMENTOPARAPAGAMENTODACONTACOLETIVA') == -1 and
                     texto.find('Fale com a gente! | Nossos Canais de Atendimento') == -1 and
-                    texto.find('TELEATENDIMENTO: Emergencial 116') == -1 and
-                    texto.find('DIC, FIC, DMIC e DICRI') == -1) :
+                    texto.find('TELEATENDIMENTO: 2 /   3') == -1 and
+                    texto.find('DIC, FIC, DMIC e DICRI') == -1 and
+                    texto.find('DIC, FIC, DMIC eDICRI') == -1):
                            
                     TEXTO_COMPLETO = texto 
 
                     # print(TEXTO_COMPLETO)
-
+                    # print(texto)
                     try:
+                        #print('========================')
+                        #print('////////////////////////////////////////////')
+                        
                         lista_dados_cliente = DadosRetornoCSV(len('NOME DO CLIENTE:'), texto.find('NOME DO CLIENTE:'), texto.find('ENDEREÇO:'), TEXTO_COMPLETO)
+                        #print('Cheguei... lista_dados_cliente: ', lista_dados_cliente)
 
                         lista_end_unid_consum = DadosRetornoCSV(len('ENDEREÇO:'), texto.find('ENDEREÇO:'), texto.find('CÓDIGO DA')+1, TEXTO_COMPLETO)
+                        #print('Cheguei... lista_end_unid_consum: ', lista_end_unid_consum)
 
-                        lista_num_nota_fiscal = DadosRetornoCSV(len('NOTA FISCAL N°'), texto.find('NOTA FISCAL N°'), texto.find('- SÉRIE'), TEXTO_COMPLETO)
+                        if texto.find('NOTA FISCAL N°') != -1:
+                            lista_num_nota_fiscal = DadosRetornoCSV(len('NOTA FISCAL N°'), texto.find('NOTA FISCAL N°'), texto.find('- SÉRIE'), TEXTO_COMPLETO)
+                        elif texto.find('NOTA FISCALN°') != -1: # Pernambuco
+                            lista_num_nota_fiscal = DadosRetornoCSV(len('NOTA FISCALN°'), texto.find('NOTA FISCALN°'), texto.find('- SÉRIE'), TEXTO_COMPLETO)
 
-                        lista_num_Instalacao = DadosRetornoCSV(len('INSTALAÇÃO'), texto.find('INSTALAÇÃO'), texto.find('CÓDIGO DO CLIENTE'), TEXTO_COMPLETO)
+                        #print('Cheguei... lista_num_nota_fiscal: ', lista_num_nota_fiscal)
 
-                        lista_classificacao = DadosRetornoCSV(len('CLASSIFICAÇÃO:'), texto.find('CLASSIFICAÇÃO:'), texto.find('TIPO DE FORNECIMENTO:'), TEXTO_COMPLETO)
+                        if texto.find('INSTALAÇÃO') != -1:
+                            lista_num_Instalacao = DadosRetornoCSV(len('INSTALAÇÃO'), texto.find('INSTALAÇÃO'), texto.find('CÓDIGO DO CLIENTE'), TEXTO_COMPLETO)
+                        elif texto.find('DAINSTALAÇÃO') != -1:
+                            lista_num_Instalacao = DadosRetornoCSV(len('DAINSTALAÇÃO'), texto.find('DAINSTALAÇÃO'), texto.find('CÓDIGO DO CLIENTE'), TEXTO_COMPLETO)
 
-                        if texto.find('neoenergiacoelba.com.br') > 0:
+                        #print('Cheguei... lista_num_Instalacao: ', lista_num_Instalacao)
+
+                        if texto.find('TIPO DEFORNECIMENTO:') != -1:
+                            lista_classificacao = DadosRetornoCSV(len('CLASSIFICAÇÃO:'), texto.find('CLASSIFICAÇÃO:'), texto.find('TIPO DEFORNECIMENTO:'), TEXTO_COMPLETO)                         
+                        else:
+                            lista_classificacao = DadosRetornoCSV(len('CLASSIFICAÇÃO:'), texto.find('CLASSIFICAÇÃO:'), texto.find('TIPO DE FORNECIMENTO:'), TEXTO_COMPLETO)                                                                            
+
+                        #print('Cheguei... lista_classificacao: ', lista_classificacao)                           
+
+                        if texto.find('neoenergiacoelba.com.br') != -1:
                             lista_desc_nota_fiscal = DadosRetornoCSV(0, 0, texto.find('neoenergiacoelba.com.br'), TEXTO_COMPLETO)
+                        elif texto.find('www.clientescorporativos.neoenergiap ernambuco.com.br') != -1: 
+                            lista_desc_nota_fiscal = DadosRetornoCSV(0, 0, texto.find('www.clientescorporativos.neoenergiap ernambuco.com.br'), TEXTO_COMPLETO)
                         else:
                             lista_desc_nota_fiscal = DadosRetornoCSV(0, 0, texto.find('www.neoenergia.com'), TEXTO_COMPLETO)
 
-                        lista_desc_nota_fiscal_tratado = " ".join(lista_desc_nota_fiscal.split())
-                        lista_desc_nota_fiscal_tratado_list = lista_desc_nota_fiscal_tratado.split(" ")
+                        #print('Cheguei... lista_desc_nota_fiscal: ', lista_desc_nota_fiscal)
 
+                        lista_desc_nota_fiscal_tratado = " ".join(lista_desc_nota_fiscal.split())
+                        #print('Cheguei... lista_desc_nota_fiscal_tratado: ', lista_desc_nota_fiscal_tratado)
+                        lista_desc_nota_fiscal_tratado_list = lista_desc_nota_fiscal_tratado.split(" ")
+                        #print('Cheguei... lista_desc_nota_fiscal_tratado_list: ', lista_desc_nota_fiscal_tratado_list)
                         lista_desc_nota_fiscal_gerar = " ".join(lista_desc_nota_fiscal_tratado_list)
+                        
+                        #print('Cheguei... lista_desc_nota_fiscal_gerar: ', lista_desc_nota_fiscal_gerar)
 
                         # Tarifas
                         lista_desc_tarifa_gerar = " ".join([
@@ -199,37 +237,41 @@ if uploaded_files:
                         ])
 
                         # ICMS
-                        lista_inform_tributos_ICMS = DadosRetornoCSV(len('ICMS'), texto.find('ICMS'), texto.find('CONSUMO / kWh'), TEXTO_COMPLETO)
+                        lista_inform_tributos_ICMS = DadosRetornoCSV(len('ICMS '), texto.find('ICMS '), texto.find('CONSUMO / kWh'), TEXTO_COMPLETO)
+                        #print('Cheguei... lista_inform_tributos_ICMS: ', lista_inform_tributos_ICMS)
                         lista_inform_tributos_list_ICMS = " ".join(lista_inform_tributos_ICMS.split()).split(" ")
+                        #print('Cheguei... lista_inform_tributos_list_ICMS: ', lista_inform_tributos_list_ICMS)
 
-                        lista_inform_tributos_PIS = DadosRetornoCSV(len('(%) PIS'), texto.find('(%) PIS'), texto.find('COFINS'), TEXTO_COMPLETO)
+                        if texto.find('(%) PIS') != -1:
+                          lista_inform_tributos_PIS = DadosRetornoCSV(len('(%) PIS'), texto.find('(%) PIS'), texto.find('COFINS'), TEXTO_COMPLETO)                                                 
+                        elif texto.find('PIS ') != -1:
+                          lista_inform_tributos_PIS = DadosRetornoCSV(len('PIS '), texto.find('PIS '), texto.find('COFINS'), TEXTO_COMPLETO)
+                          
                         lista_inform_tributos_list_PIS = " ".join(lista_inform_tributos_PIS.split()).split(" ")
+                        #print('Cheguei... lista_inform_tributos_list_PIS: ', lista_inform_tributos_list_PIS)
 
-                        lista_inform_tributos_COFINS = DadosRetornoCSV(len('COFINS'), texto.find('COFINS'), texto.find('ICMS'), TEXTO_COMPLETO)
+                        lista_inform_tributos_COFINS = DadosRetornoCSV(len('COFINS'), texto.find('COFINS'), texto.find('ICMS '), TEXTO_COMPLETO)
                         lista_inform_tributos_list_COFINS = " ".join(lista_inform_tributos_COFINS.split()).split(" ")
+                        #print('Cheguei... lista_inform_tributos_COFINS: ', lista_inform_tributos_COFINS)
 
-                        if texto.find('MEDIDOR kWh') > 0 and texto.find('Energia Ativa') > 0:
+                        if texto.find('EnergiaAtiva') != -1:
+                            lista_num_medidor = DadosRetornoCSV(len('MEDIDOR kWh'), texto.find('MEDIDOR kWh'), texto.find('EnergiaAtiva'), TEXTO_COMPLETO)
+                        elif texto.find('MEDIDOR kWh') > 0 and texto.find('Energia Ativa') > 0:
                             lista_num_medidor = DadosRetornoCSV(len('MEDIDOR kWh'), texto.find('MEDIDOR kWh'), texto.find('Energia Ativa'), TEXTO_COMPLETO)
                         else:
-                            lista_num_medidor = ""                                                
+                            lista_num_medidor = ""    
 
-                        if texto.find('CÓDIGO DO CLIENTE') > 0 and texto.find('DATAS DE LEITURAS  LEITURA ANTERIOR') > 0:                          
-                          lista_conta_contato = DadosRetornoCSV(len('CÓDIGO DO CLIENTE'), texto.find('CÓDIGO DO CLIENTE'), texto.find('DATAS DE LEITURAS'), TEXTO_COMPLETO)
-                        
-                        # if texto.find(lista_mes_ano_aux_concat + ' CÓDIGO DO CLIENTE') != -1 and texto.find('VENCIMENTO') != -1:                                                   
-                        #     lista_conta_contato = DadosRetornoCSV(len(lista_mes_ano_aux_concat + ' CÓDIGO DO CLIENTE'), texto.find(lista_mes_ano_aux_concat + ' CÓDIGO DO CLIENTE'), texto.find('VENCIMENTO')+12, TEXTO_COMPLETO)
-                            
-                        #     print('VENCIMENTO')  
-                        #     print('lista_conta_contato: ', lista_conta_contato)
-                        #     print(lista_mes_ano_aux_concat + ' CÓDIGO DO CLIENTE')
-                        #     print('len(lista_mes_ano_aux_concat +  CÓDIGO DO CLIENTE)', len(lista_mes_ano_aux_concat + ' CÓDIGO DO CLIENTE'))
+                        #print('Cheguei... lista_num_medidor: ', lista_num_medidor)                                            
 
-                        #     print('texto.find(lista_mes_ano_aux_concat + CÓDIGO DO CLIENTE): ', texto.find(lista_mes_ano_aux_concat + ' CÓDIGO DO CLIENTE') )
-                        #     print('VENCIMENTO+12', texto.find('VENCIMENTO')+12)
-
-                        # elif texto.find('CÓDIGO DO CLIENTE') > 0 and texto.find('DATAS DE LEITURAS  LEITURA ANTERIOR') > 0:
-                        #     print('DATAS DE LEITURAS  LEITURA ANTERIOR')
-                        #     lista_conta_contato = DadosRetornoCSV(len('CÓDIGO DO CLIENTE'), texto.find('DATAS DE LEITURAS  LEITURA ANTERIOR'), texto.find('DATAS DE LEITURAS  LEITURA ANTERIOR'), TEXTO_COMPLETO)
+                        if texto.find('DATASDELEITURAS') != -1:                 
+                            lista_conta_contato = DadosRetornoCSV(len('CÓDIGO DO CLIENTE'), texto.find('CÓDIGO DO CLIENTE'), texto.find('DATASDELEITURAS'), TEXTO_COMPLETO)                            
+                        elif texto.find('CÓDIGO DO CLIENTE') > 0 and texto.find('DATAS DE LEITURAS  LEITURA ANTERIOR') > 0:                          
+                          lista_conta_contato = DadosRetornoCSV(len('CÓDIGO DO CLIENTE'), texto.find('CÓDIGO DO CLIENTE'), texto.find('DATAS DE LEITURAS'), TEXTO_COMPLETO)                                           
+                        elif texto.find(lista_mes_ano_aux_concat + ' CÓDIGO DO CLIENTE') != -1 and texto.find('VENCIMENTO') != -1:                                                   
+                            lista_conta_contato = DadosRetornoCSV(len(lista_mes_ano_aux_concat + ' CÓDIGO DO CLIENTE'), texto.find(lista_mes_ano_aux_concat + ' CÓDIGO DO CLIENTE'), texto.find('VENCIMENTO')+12, TEXTO_COMPLETO)                                           
+                        elif texto.find('CÓDIGO DO CLIENTE') > 0 and texto.find('DATAS DE LEITURAS  LEITURA ANTERIOR') > 0:
+                            print('DATAS DE LEITURAS  LEITURA ANTERIOR')
+                            lista_conta_contato = DadosRetornoCSV(len('CÓDIGO DO CLIENTE'), texto.find('DATAS DE LEITURAS  LEITURA ANTERIOR'), texto.find('DATAS DE LEITURAS  LEITURA ANTERIOR'), TEXTO_COMPLETO)
                         elif texto.find('Conta  Contrato Coletiva nº') > 0:
                             if texto.find('Regras para cobrança da contribuição para o custeio do serviço de') > 0:
                                 lista_conta_contato = DadosRetornoCSV(len('Conta  Contrato Coletiva nº'), texto.find('Conta  Contrato Coletiva nº'), texto.find('Regras para cobrança da contribuição para o custeio do serviço de'), TEXTO_COMPLETO).replace(".", "")                                
@@ -242,11 +284,23 @@ if uploaded_files:
                                 lista_conta_contato = DadosRetornoCSV(len('Conta  Contrato Coletiva nº'), texto.find('Conta  Contrato Coletiva nº'), texto.find('A partir de agosto o IBGE realizará o censo demográfico 2022'), TEXTO_COMPLETO).replace(".", "")
                             else:
                                 lista_conta_contato = DadosRetornoCSV(len('Conta Contrato Coletiva nº'), texto.find('Conta Contrato Coletiva nº'), texto.find('A Iluminação Pública é de responsabilidade da Prefeitura'), TEXTO_COMPLETO).replace(".", "")                                                                                                                                                                                        
+                        
+                        #print('Cheguei... lista_conta_contato: ', lista_conta_contato)
+                        
+                        if texto.find('REF:MÊS/ANO') != -1:
+                            lista_mes_ano = DadosRetornoCSV(len('REF:MÊS/ANO'), texto.find('REF:MÊS/ANO'), texto.find('VENCIMENTO')+1, TEXTO_COMPLETO)                             
+                        else:
+                            lista_mes_ano = DadosRetornoCSV(len('MÊS/ANO'), texto.find('MÊS/ANO'), texto.find('VENCIMENTO')+1, TEXTO_COMPLETO)
 
-                        lista_mes_ano = DadosRetornoCSV(len('MÊS/ANO'), texto.find('MÊS/ANO'), texto.find('VENCIMENTO')+1, TEXTO_COMPLETO)
+                        #print('Cheguei... lista_mes_ano: ', lista_mes_ano)
 
-                        lista_total_pagar = DadosRetornoCSV(len('TOTAL A PAGAR R$'), texto.find('TOTAL A PAGAR R$'), texto.find('Cadastra-se e receba'), TEXTO_COMPLETO)
+                        if texto.find('TOTAL APAGAR R$') != -1:
+                            lista_total_pagar = DadosRetornoCSV(len('TOTAL APAGAR R$'), texto.find('TOTAL APAGAR R$'), texto.find('Cadastra-se e receba'), TEXTO_COMPLETO)
+                        else:
+                            lista_total_pagar = DadosRetornoCSV(len('TOTAL A PAGAR R$'), texto.find('TOTAL A PAGAR R$'), texto.find('Cadastra-se e receba'), TEXTO_COMPLETO)
 
+                        #print('Cheguei... lista_total_pagar: ', lista_total_pagar)
+                     
                         data_linhas.append([ 
                             lista_mes_ano,
                             lista_conta_contato,
@@ -384,7 +438,7 @@ if uploaded_files:
                     elif texto.find('1 /   3') > 0:
                         lista_mes_ano = DadosRetornoCSV(len('DATA DA EMISSÃO DA NOTA FISCAL'), texto.find('DATA DA EMISSÃO DA NOTA FISCAL')+4, texto.find('DATA DA APRESENTAÇÃO')+1, TEXTO_COMPLETO) 
                     else:
-                        lista_mes_ano = DadosRetornoCSV(len('REF:MÊS/ANO'), pageAux.extract_text().find('REF:MÊS/ANO')+3, pageAux.extract_text().find('VENCIMENTO')+1, TEXTO_COMPLETO_AUX) 
+                        lista_mes_ano = DadosRetornoCSV(len('REF:MÊS/ANO'), texto.find('REF:MÊS/ANO')+3, texto.find('VENCIMENTO')+1, TEXTO_COMPLETO) 
 
                     # Total a pagar
                     lista_total_pagar = DadosRetornoCSV(len('TOTAL A PAGAR (R$)'), texto.find('TOTAL A PAGAR (R$)'), texto.find('DATA DA EMISSÃO DA NOTA FISCAL'), TEXTO_COMPLETO)                  
@@ -460,8 +514,12 @@ if uploaded_files:
         if col in df.columns:
             df[col] = df[col].apply(converter_moeda)
 
+    output = BytesIO()
+
     with pd.ExcelWriter(output_excel, engine='xlsxwriter') as writer:
         df.to_excel(writer, index=False, sheet_name='Relatório')
+
+        output.seek(0)
 
         workbook  = writer.book
         worksheet = writer.sheets['Relatório']
