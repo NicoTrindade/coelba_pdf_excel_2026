@@ -15,7 +15,7 @@ from funcoes import DadosRetornoCSV  # sua função existente
 
 st.set_page_config(page_title="Extrator COELBA", layout="wide")
 
-st.title("⚡ Extrator Inteligente de Faturas PDF. Versão: 1.4")
+st.title("⚡ Extrator Inteligente de Faturas PDF. Versão: 1.5")
 
 if "uploader_key" not in st.session_state:
     st.session_state.uploader_key = 0
@@ -48,7 +48,7 @@ if uploaded_files is not None and len(uploaded_files) > 0:
     lista_cabecalho = [
         'Mês Ano', 
         'Conta Contrato', 
-        'Entrada',
+        'Errada',
         'Correta',
         'ICMS',
         'Observação',
@@ -78,7 +78,7 @@ if uploaded_files is not None and len(uploaded_files) > 0:
     total_boletos = 0
     lista_mes_ano_aux_concat = ""
     
-    Entrada_Livre = ''
+    Errada_Livre = ''
     Correta_Livre = ''
     ICMS_Livre = ''
     Obs_Livre = ''
@@ -169,6 +169,9 @@ if uploaded_files is not None and len(uploaded_files) > 0:
                 if texto is None:
                     continue
 
+                if texto.find('DANFE - DOCUMENTO AUXILIAR DA NOTA FISCAL DE ENERGIA ELÉTRICA') != -1 and controlarPag == 1:
+                    controlarPag = 0
+
                 if (texto.find('DOCUMENTO PARA PAGAMENTO DA CONTA COLETIVA') == -1 and controlarPag == 0 and 
                     texto.find('DOCUMENTOPARAPAGAMENTODACONTACOLETIVA') == -1 and
                     texto.find('Fale com a gente! | Nossos Canais de Atendimento') == -1 and
@@ -215,10 +218,12 @@ if uploaded_files is not None and len(uploaded_files) > 0:
                             lista_desc_nota_fiscal = DadosRetornoCSV(0, 0, texto.find('neoenergiacoelba.com.br'), TEXTO_COMPLETO)
                         elif texto.find('www.clientescorporativos.neoenergiap ernambuco.com.br') != -1: 
                             lista_desc_nota_fiscal = DadosRetornoCSV(0, 0, texto.find('www.clientescorporativos.neoenergiap ernambuco.com.br'), TEXTO_COMPLETO)
+                        elif texto.find('www.neoenergia.com|Ligue grátis 116') != -1: 
+                            lista_desc_nota_fiscal = DadosRetornoCSV(0, 0, texto.find('www.neoenergia.com|Ligue grátis 116'), TEXTO_COMPLETO)                                                    
                         else:
                             lista_desc_nota_fiscal = DadosRetornoCSV(0, 0, texto.find('www.neoenergia.com'), TEXTO_COMPLETO)
 
-                        #print('Cheguei... lista_desc_nota_fiscal: ', lista_desc_nota_fiscal)
+                        # print('Cheguei... lista_desc_nota_fiscal: ', lista_desc_nota_fiscal)
 
                         lista_desc_nota_fiscal_tratado = " ".join(lista_desc_nota_fiscal.split())
                         #print('Cheguei... lista_desc_nota_fiscal_tratado: ', lista_desc_nota_fiscal_tratado)
@@ -229,12 +234,21 @@ if uploaded_files is not None and len(uploaded_files) > 0:
                         #print('Cheguei... lista_desc_nota_fiscal_gerar: ', lista_desc_nota_fiscal_gerar)
 
                         # Tarifas
-                        lista_desc_tarifa_gerar = " ".join([
-                            lista_desc_nota_fiscal_tratado_list[0],
-                            lista_desc_nota_fiscal_tratado_list[9],
-                            lista_desc_nota_fiscal_tratado_list[10],
-                            lista_desc_nota_fiscal_tratado_list[19],
-                        ])
+                        if texto.find('www.neoenergia.com|Ligue grátis 116') == -1:                           
+                            lista_desc_tarifa_gerar = " ".join([
+                                lista_desc_nota_fiscal_tratado_list[0],
+                                lista_desc_nota_fiscal_tratado_list[9],
+                                lista_desc_nota_fiscal_tratado_list[10],
+                                lista_desc_nota_fiscal_tratado_list[19],
+                            ])
+                        else:
+                            lista_desc_tarifa_gerar = lista_desc_nota_fiscal
+                            # print('Cheguei... lista_desc_nota_fiscal_gerar: ', lista_desc_nota_fiscal_gerar)
+
+                        # print('lista_desc_nota_fiscal_tratado_list[0]: ', lista_desc_nota_fiscal_tratado_list[0])
+                        # print('lista_desc_nota_fiscal_tratado_list[9]: ', lista_desc_nota_fiscal_tratado_list[9])
+                        # print('lista_desc_nota_fiscal_tratado_list[10]:' , lista_desc_nota_fiscal_tratado_list[10])
+                        # print('lista_desc_nota_fiscal_tratado_list[19]: ', lista_desc_nota_fiscal_tratado_list[19])
 
                         # ICMS
                         lista_inform_tributos_ICMS = DadosRetornoCSV(len('ICMS '), texto.find('ICMS '), texto.find('CONSUMO / kWh'), TEXTO_COMPLETO)
@@ -265,27 +279,30 @@ if uploaded_files is not None and len(uploaded_files) > 0:
 
                         if texto.find('DATASDELEITURAS') != -1:                 
                             lista_conta_contato = DadosRetornoCSV(len('CÓDIGO DO CLIENTE'), texto.find('CÓDIGO DO CLIENTE'), texto.find('DATASDELEITURAS'), TEXTO_COMPLETO)                            
-                        elif texto.find('CÓDIGO DO CLIENTE') > 0 and texto.find('DATAS DE LEITURAS  LEITURA ANTERIOR') > 0:                          
+                        elif texto.find('CÓDIGO DO CLIENTE') != -1 and texto.find('DATAS DE LEITURAS  LEITURA ANTERIOR') != -1:                          
                           lista_conta_contato = DadosRetornoCSV(len('CÓDIGO DO CLIENTE'), texto.find('CÓDIGO DO CLIENTE'), texto.find('DATAS DE LEITURAS'), TEXTO_COMPLETO)                                           
+                        elif texto.find('CÓDIGO DO CLIENTE') != -1 and texto.find('DATAS DE LEITURAS LEITURA ANTERIOR') != -1:                          
+                          lista_conta_contato = DadosRetornoCSV(len('CÓDIGO DO CLIENTE'), texto.find('CÓDIGO DO CLIENTE'), texto.find('DATAS DE LEITURAS LEITURA ANTERIOR'), TEXTO_COMPLETO)                        
                         elif texto.find(lista_mes_ano_aux_concat + ' CÓDIGO DO CLIENTE') != -1 and texto.find('VENCIMENTO') != -1:                                                   
                             lista_conta_contato = DadosRetornoCSV(len(lista_mes_ano_aux_concat + ' CÓDIGO DO CLIENTE'), texto.find(lista_mes_ano_aux_concat + ' CÓDIGO DO CLIENTE'), texto.find('VENCIMENTO')+12, TEXTO_COMPLETO)                                           
-                        elif texto.find('CÓDIGO DO CLIENTE') > 0 and texto.find('DATAS DE LEITURAS  LEITURA ANTERIOR') > 0:
+                        elif texto.find('CÓDIGO DO CLIENTE') != -1 and texto.find('DATAS DE LEITURAS  LEITURA ANTERIOR') != -1:
                             print('DATAS DE LEITURAS  LEITURA ANTERIOR')
                             lista_conta_contato = DadosRetornoCSV(len('CÓDIGO DO CLIENTE'), texto.find('DATAS DE LEITURAS  LEITURA ANTERIOR'), texto.find('DATAS DE LEITURAS  LEITURA ANTERIOR'), TEXTO_COMPLETO)
-                        elif texto.find('Conta  Contrato Coletiva nº') > 0:
-                            if texto.find('Regras para cobrança da contribuição para o custeio do serviço de') > 0:
+                        elif texto.find('Conta  Contrato Coletiva nº') != -1:
+                            if texto.find('Regras para cobrança da contribuição para o custeio do serviço de') != -1:
                                 lista_conta_contato = DadosRetornoCSV(len('Conta  Contrato Coletiva nº'), texto.find('Conta  Contrato Coletiva nº'), texto.find('Regras para cobrança da contribuição para o custeio do serviço de'), TEXTO_COMPLETO).replace(".", "")                                
-                            elif texto.find('A partir de agosto o IBGE realizará o censo demográfico 2022') > 0:
+                            elif texto.find('A partir de agosto o IBGE realizará o censo demográfico 2022') != -1:
                                 lista_conta_contato = DadosRetornoCSV(len('Conta  Contrato Coletiva nº'), texto.find('Conta  Contrato Coletiva nº'), texto.find('A partir de agosto o IBGE realizará o censo demográfico 2022'), TEXTO_COMPLETO).replace(".", "")
                             else:
                                 lista_conta_contato = DadosRetornoCSV(len('Conta  Contrato Coletiva nº'), texto.find('Conta  Contrato Coletiva nº'), texto.find('A Iluminação Pública é de responsabilidade da Prefeitura'), TEXTO_COMPLETO) .replace(".", "")                                                               
                         else:
-                            if texto.find('A partir de agosto o IBGE realizará o censo demográfico 2022') > 0:                               
+                            if texto.find('A partir de agosto o IBGE realizará o censo demográfico 2022') != -1:                               
                                 lista_conta_contato = DadosRetornoCSV(len('Conta  Contrato Coletiva nº'), texto.find('Conta  Contrato Coletiva nº'), texto.find('A partir de agosto o IBGE realizará o censo demográfico 2022'), TEXTO_COMPLETO).replace(".", "")
                             else:
                                 lista_conta_contato = DadosRetornoCSV(len('Conta Contrato Coletiva nº'), texto.find('Conta Contrato Coletiva nº'), texto.find('A Iluminação Pública é de responsabilidade da Prefeitura'), TEXTO_COMPLETO).replace(".", "")                                                                                                                                                                                        
                         
-                        #print('Cheguei... lista_conta_contato: ', lista_conta_contato)
+                        # if lista_conta_contato == '935666023':
+                        #     print('Cheguei... lista_conta_contato: ', lista_conta_contato)
                         
                         if texto.find('REF:MÊS/ANO') != -1:
                             lista_mes_ano = DadosRetornoCSV(len('REF:MÊS/ANO'), texto.find('REF:MÊS/ANO'), texto.find('VENCIMENTO')+1, TEXTO_COMPLETO)                             
@@ -296,15 +313,27 @@ if uploaded_files is not None and len(uploaded_files) > 0:
 
                         if texto.find('TOTAL APAGAR R$') != -1:
                             lista_total_pagar = DadosRetornoCSV(len('TOTAL APAGAR R$'), texto.find('TOTAL APAGAR R$'), texto.find('Cadastra-se e receba'), TEXTO_COMPLETO)
+                        elif texto.find('www.neoenergia.com|Ligue grátis 116') != -1:
+                            lista_total_pagar = DadosRetornoCSV(len('TOTAL A PAGAR R$'), texto.find('TOTAL A PAGAR R$'), texto.find('Cadastra-se e receba')+1, TEXTO_COMPLETO)  
                         else:
                             lista_total_pagar = DadosRetornoCSV(len('TOTAL A PAGAR R$'), texto.find('TOTAL A PAGAR R$'), texto.find('Cadastra-se e receba'), TEXTO_COMPLETO)
 
-                        #print('Cheguei... lista_total_pagar: ', lista_total_pagar)
-                     
+                        #print('Cheguei... lista_total_pagar: ', lista_total_pagar)                     
+
+                        # print('lista_inform_tributos_list_ICMS[0]: ', lista_inform_tributos_list_ICMS[0])
+                        # print('lista_inform_tributos_list_ICMS[1]: ', lista_inform_tributos_list_ICMS[1])
+                        # print('lista_inform_tributos_list_ICMS[2]: ', lista_inform_tributos_list_ICMS[2])
+                        # print('lista_inform_tributos_list_PIS[0]: ', lista_inform_tributos_list_PIS[0])
+                        # print('lista_inform_tributos_list_PIS[1]: ', lista_inform_tributos_list_PIS[1])
+                        # print('lista_inform_tributos_list_PIS[2]: ', lista_inform_tributos_list_PIS[2])
+                        # print('lista_inform_tributos_list_COFINS[0]: ',lista_inform_tributos_list_COFINS[0])
+                        # print('lista_inform_tributos_list_COFINS[1]: ' ,lista_inform_tributos_list_COFINS[1])
+                        # print('lista_inform_tributos_list_COFINS[2]: ', lista_inform_tributos_list_COFINS[2])
+                        
                         data_linhas.append([ 
                             lista_mes_ano,
                             lista_conta_contato,
-                            Entrada_Livre,
+                            Errada_Livre,
                             Correta_Livre,
                             ICMS_Livre,
                             Obs_Livre,
@@ -345,7 +374,9 @@ if uploaded_files is not None and len(uploaded_files) > 0:
               texto = page.extract_text()              
               
               if texto is None:
-                    continue                                    
+                    continue             
+
+
               
               if (texto.find('DOCUMENTO PARA PAGAMENTO DA CONTA COLETIVA') == -1 and
                   texto.find('AVISO IMPORTANTE!') == -1 and
@@ -446,7 +477,7 @@ if uploaded_files is not None and len(uploaded_files) > 0:
                     data_linhas.append([
                         lista_mes_ano,
                         lista_conta_contato,                     
-                        Entrada_Livre,
+                        Errada_Livre,
                         Correta_Livre,
                         ICMS_Livre,
                         Obs_Livre,
@@ -517,30 +548,48 @@ if uploaded_files is not None and len(uploaded_files) > 0:
     output = BytesIO()
 
     with pd.ExcelWriter(output_excel, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Relatório')
+        df.to_excel(writer, index=False, sheet_name='Relatório', startrow=1)
 
         output.seek(0)
 
         workbook  = writer.book
         worksheet = writer.sheets['Relatório']
 
-        # Número de linhas e colunas
         (max_row, max_col) = df.shape
 
-        # Criar tabela com estilo
-        worksheet.add_table(0, 0, max_row, max_col - 1, {
+        # ✅ Tabela correta (mantém filtro + zebra)
+        worksheet.add_table(1, 0, max_row + 1, max_col - 1, {
             'columns': [{'header': col} for col in df.columns],
-            'style': 'Table Style Medium 9'  # ← você pode trocar o estilo
+            'style': 'Table Style Medium 9'
         })
 
-        # ❄️ Congelar cabeçalho
-        worksheet.freeze_panes(1, 0)
+        # ❄️ Freeze correto
+        worksheet.freeze_panes(2, 0)
 
-        # 💰 Formato de moeda (R$)
-        formato_moeda = workbook.add_format({'num_format': 'R$ #,##0.00'})        
+        # 💰 Moeda
+        formato_moeda = workbook.add_format({
+            'num_format': 'R$ #,##0.00'
+        })
 
-        # 👉 Ajustar largura das colunas automaticamente
+        # 📍 Centralizado
+        formato_centralizado = workbook.add_format({
+            'align': 'center',
+            'valign': 'vcenter'
+        })
+
+        # 🎨 Header amarelo (A até G)
+        header_amarelo = workbook.add_format({
+            'bold': True,
+            'bg_color': '#FFD966',
+            'font_color': 'black',
+            'align': 'center',
+            'valign': 'vcenter',
+            'border': 1
+        })
+
+        # 👉 Ajustar colunas
         for col_num, col_name in enumerate(df.columns):
+
             max_length = max(
                 df[col_name].astype(str).map(len).max(),
                 len(col_name)
@@ -548,39 +597,32 @@ if uploaded_files is not None and len(uploaded_files) > 0:
 
             worksheet.set_column(col_num, col_num, max_length)
 
-            # 💰 Aplicar moeda apenas na coluna "Total a pagar"
-
+            # 💰 moeda
             if col_name in colunas_moeda:
-                worksheet.set_column(col_num, col_num, max_length, formato_moeda)                
+                worksheet.set_column(col_num, col_num, max_length, formato_moeda)
 
-            header_destacar = {
-                'Entrada',
-                'Correta',
-                'ICMS',
-                'Observação',
-                'ANEEL'
-            }
+            # 📍 centralizar dados A–G
+            if col_num <= 6:
+                worksheet.set_column(col_num, col_num, max_length, formato_centralizado)
 
-            # 🎨 formato para cabeçalho destacado
-            header_format = workbook.add_format({
-                'bold': True,
-                'bg_color': '#FFD966',
-                'font_color': 'Black',
-                'border': 1
-            })
+        # 🔥 Centralizar dados já escritos (A–G)
+        for row in range(2, max_row + 2):
+            for col in range(0, min(7, max_col)):
+                valor = df.iloc[row - 2, col]
+                worksheet.write(row, col, valor, formato_centralizado)
 
-            # 🎨 formato padrão (opcional)
-            header_default = workbook.add_format({
-                'bold': True,
-                'border': 1
-            })
+        # 🔥 Aplicar estilo no cabeçalho SEM quebrar tabela
+        worksheet.set_row(1, None)  # mantém altura padrão
 
-            # 👉 sobrescrever o cabeçalho
-            for col_num, col_name in enumerate(df.columns):
-                if col_name in header_destacar:
-                    worksheet.write(0, col_num, col_name, header_format)
-                else:
-                    worksheet.write(0, col_num, col_name, header_default)
+        # 🔥 Header C até G com estilo + alinhamento garantido
+        for col in range(2, min(7, max_col)):  # C até G
+            worksheet.write(1, col, df.columns[col], header_amarelo)
+
+            # Forçar alinhamento também via coluna
+            worksheet.set_column(col, col, None, workbook.add_format({
+                'align': 'center',
+                'valign': 'vcenter'
+            }))
 
     excel_bytes = output_excel.getvalue()
 
